@@ -72,7 +72,7 @@ async function newFrame(frame) {
         lines.forEach((element) => console.log(element, style));
         lines = [];
         for (let y = 0; y < height; y += size) {
-            lines.push([]);
+            lines.push("");
         }
         newFrame(frame + 1);
     }, false,);
