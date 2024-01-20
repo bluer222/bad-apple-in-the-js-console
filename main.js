@@ -9,20 +9,31 @@ var charWidth = 1;
 var lines = [];
 var images = [];
 var style = "";
+var frame = 0;
+var framestart = 0;
+var frameend = 0;
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
-//open function
-
-async function newFrame(frame) {
-    //once image loads
+//open function(async to prevent setimeout from complaining)
+async function newFrame() {
+if (images[frame].complete && images[frame].naturalWidth !== 0) {
+    // Image is already loaded, proceed with using it
+    drawIt();
+  } else {
+    //wait for it to load first
     images[frame].addEventListener("load", () => {
-        // Iterate through pixels using x and y coordinates
+        drawIt(frame);
+    }, false,);
+  }
+}
+function drawIt(){
+     // Iterate through pixels using x and y coordinates
         //draw image
+        canvas.style.width = width + "px";
+        canvas.style.height = height + "px";
         canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(images[frame], 0, 0, width, height);
-        canvas.width = width;
-        canvas.height = height;
+        canvas.height = height/size;
+        ctx.drawImage(images[frame], 0, 0, canvas.width, canvas.height);
         //get windows to open
         let currentColor = "";
         let currentWidth = "";
@@ -41,7 +52,7 @@ async function newFrame(frame) {
                 } else if (currentColor == "black") {
                     currentWidth += 1;
                 } else if (currentColor == "white") {
-                    lines[y / size] += space.repeat(Math.round(currentWidth / spaceWidth));
+                    lines[y] += space.repeat(Math.round(currentWidth / spaceWidth));
                     currentColor = ""
                 }
             } else {
@@ -51,31 +62,40 @@ async function newFrame(frame) {
                 } else if (currentColor == "white") {
                     currentWidth += 1
                 } else if (currentColor == "black") {
-                    lines[y / size] += char.repeat(Math.round(currentWidth / charWidth));
+                    lines[y] += char.repeat(Math.round(currentWidth / charWidth));
                     currentColor = ""
                 }
             }
             x += 1; // Move to the next pixel horizontally
             if (x >= canvas.width) {
                 if (currentColor == "white") {
-                    lines[y / size] += space.repeat(Math.round(currentWidth / spaceWidth));
+                    lines[y] += space.repeat(Math.round(currentWidth / spaceWidth));
                     currentColor = ""
                 }
                 if (currentColor == "black") {
-                    lines[y / size] += char.repeat(Math.round(currentWidth / charWidth));
+                    lines[y] += char.repeat(Math.round(currentWidth / charWidth));
                     currentColor = ""
                 }
                 x = 0; // Reset x to the beginning of the row
-                y += size; // Move to the next row, skipping 9 rows
+                y += 1; // Move to the next row
             }
         }
-        lines.forEach((element) => console.log(element, style));
+        let full = ""
+        //lines.forEach((element) => console.log("%c" + element, style));
+       lines.forEach((element) => full+=(element+"\n"));
+       console.log(full, style);
+       console.log("frame:" + frame);
         lines = [];
         for (let y = 0; y < height; y += size) {
             lines.push("");
         }
-        newFrame(frame + 1);
-    }, false,);
+        frameend = Date.now();
+        console.log("frame took:" + (frameend-framestart) + "ms")
+        frame += 1;
+        setTimeout(()=>{
+            framestart = Date.now();
+            newFrame();
+        }, 33-(frameend-framestart))
 }
 function getPixelColor(x, y) {
     const imgData = ctx.getImageData(x, y, 1, 1);
@@ -91,7 +111,7 @@ function getTextWidth(text, font) {
     // re-use canvas object for better performance
     ctx.font = font;
     const metrics = ctx.measureText(text);
-    return metrics.width;
+    return Math.ceil(metrics.width);
 }
 
 function start() {
@@ -101,18 +121,20 @@ function start() {
     space = document.getElementById("space").value;
     char = document.getElementById("char").value;
     size = Number(document.getElementById("size").value);
-    style = size + "px Arial";
+    style = "font-size: " + size + "px; font-family: Arial; line-height: 1;";
     spaceWidth = getTextWidth(space, style);
     charWidth = getTextWidth(char, style);
     for (let y = 0; y < height; y += size) {
         lines.push([]);
     }
     console.log("loading images")
-    for (let i = 0; i < 6562; i++) {
+    for (let i = 0; i < 6561; i++) {
         //load image
         images.push(new Image()); // Create new img element
-        images[i].src = "badApple/bad_apple_" + i.toString().padStart(3, 0) + ".png";
+        images[i].src = "badApple/bad_apple_" + (i+1).toString().padStart(3, 0) + ".png";
     }
     console.log("starting")
-    newFrame(1);
+    frame = 0;
+    framestart = Date.now();
+    newFrame();
 }
