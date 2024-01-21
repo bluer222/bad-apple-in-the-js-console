@@ -9,9 +9,11 @@ var charWidth = 1;
 var lines = [];
 var images = [];
 var style = "";
-var frame = 0;
+var frame = 1;
 var framestart = 0;
+var recording = false;
 var frameend = 0;
+console.warn = () => {};
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
 //open function(async to prevent setimeout from complaining)
@@ -26,6 +28,37 @@ if (images[frame].complete && images[frame].naturalWidth !== 0) {
     }, false,);
   }
 }
+var recording;
+var video = false;
+async function record(){
+    recording = true
+          // Prompt the user to select a screen or window to capture
+          const stream = await navigator.mediaDevices.getDisplayMedia();
+           video = document.createElement('video');
+          video.srcObject = stream;
+          await video.play();
+}
+function captureScreenshot() {
+    try {
+      // Create a canvas to draw the video frame onto
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+  
+      // Draw the video frame onto the canvas
+      context.drawImage(video, 0, 0);
+  
+      // Create a link to download the canvas as an image
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = 'screenshot.png';
+      link.click();
+  
+    } catch (error) {
+      console.error('Error capturing screenshot:', error);
+    }
+  }
 function drawIt(){
      // Iterate through pixels using x and y coordinates
         //draw image
@@ -44,7 +77,7 @@ function drawIt(){
         while (y < canvas.height) {
             const index = (y * canvas.width + x) * 4; // Calculate index based on x and y
             // Get pixel colors
-            const pixelColor = data[index] < 100;
+            const pixelColor = data[index] < 127;
             if (pixelColor) {
                 if (currentColor == "") {
                     currentColor = "black";
@@ -78,40 +111,38 @@ function drawIt(){
                 }
                 x = 0; // Reset x to the beginning of the row
                 y += 1; // Move to the next row
+                lines.push("");
             }
         }
         let full = ""
         //lines.forEach((element) => console.log("%c" + element, style));
        lines.forEach((element) => full+=(element+"\n"));
-       console.log(full, style);
+       console.log("%c"+full, style);
        console.log("frame:" + frame);
-        lines = [];
-        for (let y = 0; y < height; y += size) {
-            lines.push("");
-        }
+        lines = [""];
         frameend = Date.now();
         console.log("frame took:" + (frameend-framestart) + "ms")
         frame += 1;
+        console.warn = () => {};
+        if(recording){
+            captureScreenshot();
+            setTimeout(()=>{
+            framestart = Date.now();
+            newFrame();
+            console.warn = () => {};
+            }, 33);
+        }else{
         setTimeout(()=>{
             framestart = Date.now();
             newFrame();
         }, 33-(frameend-framestart))
-}
-function getPixelColor(x, y) {
-    const imgData = ctx.getImageData(x, y, 1, 1);
-    const imageData = imgData.data;
-    // Extract the color components (red, green, blue, alpha)
-    const red = imageData[0];
-    //const green = imageData[1];
-    //const blue = imageData[2];
-    // Return the color as a string in the format "rgb(red, green, blue)"
-    return red < 100;
+    }
 }
 function getTextWidth(text, font) {
     // re-use canvas object for better performance
     ctx.font = font;
     const metrics = ctx.measureText(text);
-    return Math.ceil(metrics.width);
+    return metrics.width/1.5;
 }
 
 function start() {
@@ -124,10 +155,8 @@ function start() {
     style = "font-size: " + size + "px; font-family: Arial; line-height: 1;";
     spaceWidth = getTextWidth(space, style);
     charWidth = getTextWidth(char, style);
-    for (let y = 0; y < height; y += size) {
-        lines.push([]);
-    }
     console.log("loading images")
+    lines = [""];
     for (let i = 0; i < 6561; i++) {
         //load image
         images.push(new Image()); // Create new img element
